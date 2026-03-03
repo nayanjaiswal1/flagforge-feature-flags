@@ -74,7 +74,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -e ".[dev,django,fastapi,redis]"
-          pip install aiosqlite fakeredis
+          pip install aiosqlite fakeredis httpx
 
       - name: Run tests with coverage
         run: |
