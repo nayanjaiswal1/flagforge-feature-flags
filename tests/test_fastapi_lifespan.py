@@ -1,7 +1,10 @@
 from fastapi import FastAPI
 import pytest
 
-from flagforge.contrib.fastapi.lifespan import create_flagforge_lifespan, flagforge_lifespan
+from flagforge.contrib.fastapi.lifespan import (
+    create_flagforge_lifespan,
+    flagforge_lifespan,
+)
 
 
 @pytest.mark.asyncio

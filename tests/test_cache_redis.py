@@ -76,7 +76,8 @@ def test_redis_cache_sync(redis_client, monkeypatch):
 @pytest.mark.asyncio
 async def test_redis_cache_async(async_redis_client, monkeypatch):
     monkeypatch.setattr(
-        "flagforge.cache.redis.redis.asyncio.from_url", lambda url, **kw: async_redis_client
+        "flagforge.cache.redis.redis.asyncio.from_url",
+        lambda url, **kw: async_redis_client,
     )
 
     cache = AsyncRedisCache("redis://localhost")

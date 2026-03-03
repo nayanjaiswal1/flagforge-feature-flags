@@ -128,9 +128,7 @@ class AsyncStorageBackend(ABC):
         pass
 
     @abstractmethod
-    async def get_tenant_override(
-        self, key: str, tenant_id: str
-    ) -> TenantOverride | None:
+    async def get_tenant_override(self, key: str, tenant_id: str) -> TenantOverride | None:
         """Retrieve a tenant-specific override for a flag.
 
         Args:

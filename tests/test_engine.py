@@ -12,13 +12,19 @@ from flagforge.storage.memory import AsyncInMemoryStorage, InMemoryStorage
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def make_engine() -> tuple[FlagEngine, InMemoryStorage]:
     storage = InMemoryStorage()
     engine = FlagEngine(storage=storage, cache=NullCache())
     return engine, storage
 
 
-def ctx(tenant: str = "t1", user: str | None = None, env: str | None = None, groups: list[str] | None = None) -> FeatureContext:
+def ctx(
+    tenant: str = "t1",
+    user: str | None = None,
+    env: str | None = None,
+    groups: list[str] | None = None,
+) -> FeatureContext:
     return FeatureContext(
         tenant_id=tenant,
         user_id=user,
@@ -30,6 +36,7 @@ def ctx(tenant: str = "t1", user: str | None = None, env: str | None = None, gro
 # ---------------------------------------------------------------------------
 # Basic evaluation
 # ---------------------------------------------------------------------------
+
 
 class TestIsEnabled:
     def test_unknown_flag_returns_false(self):
@@ -57,6 +64,7 @@ class TestIsEnabled:
 # Tenant overrides
 # ---------------------------------------------------------------------------
 
+
 class TestTenantOverride:
     def test_override_enable(self):
         engine, storage = make_engine()
@@ -81,22 +89,23 @@ class TestTenantOverride:
 # User targeting
 # ---------------------------------------------------------------------------
 
+
 class TestUserTargeting:
     def test_enabled_for_specific_user(self):
         engine, storage = make_engine()
         storage.upsert_definition(FlagDefinition(key="f", name="F", default_enabled=False))
-        storage.upsert_tenant_override(TenantOverride(
-            key="f", tenant_id="t1", enabled=False, enabled_for_users=["user_42"]
-        ))
+        storage.upsert_tenant_override(
+            TenantOverride(key="f", tenant_id="t1", enabled=False, enabled_for_users=["user_42"])
+        )
         assert engine.is_enabled("f", ctx("t1", user="user_42")) is True
         assert engine.is_enabled("f", ctx("t1", user="user_99")) is False
 
     def test_enabled_for_group(self):
         engine, storage = make_engine()
         storage.upsert_definition(FlagDefinition(key="f", name="F", default_enabled=False))
-        storage.upsert_tenant_override(TenantOverride(
-            key="f", tenant_id="t1", enabled=False, enabled_for_groups=["beta"]
-        ))
+        storage.upsert_tenant_override(
+            TenantOverride(key="f", tenant_id="t1", enabled=False, enabled_for_groups=["beta"])
+        )
         assert engine.is_enabled("f", ctx("t1", groups=["beta"])) is True
         assert engine.is_enabled("f", ctx("t1", groups=["standard"])) is False
 
@@ -105,12 +114,18 @@ class TestUserTargeting:
 # Environment gating
 # ---------------------------------------------------------------------------
 
+
 class TestEnvironmentGating:
     def test_flag_disabled_in_wrong_env(self):
         engine, storage = make_engine()
-        storage.upsert_definition(FlagDefinition(
-            key="f", name="F", default_enabled=True, environments=["staging", "production"]
-        ))
+        storage.upsert_definition(
+            FlagDefinition(
+                key="f",
+                name="F",
+                default_enabled=True,
+                environments=["staging", "production"],
+            )
+        )
         assert engine.is_enabled("f", ctx(env="dev")) is False
         assert engine.is_enabled("f", ctx(env="production")) is True
 
@@ -124,6 +139,7 @@ class TestEnvironmentGating:
 # ---------------------------------------------------------------------------
 # evaluate_many
 # ---------------------------------------------------------------------------
+
 
 class TestEvaluateMany:
     def test_evaluate_many(self):
@@ -143,6 +159,7 @@ class TestEvaluateMany:
 # ---------------------------------------------------------------------------
 # evaluate_all
 # ---------------------------------------------------------------------------
+
 
 class TestEvaluateAll:
     def test_evaluate_all(self):
@@ -168,6 +185,7 @@ class TestEvaluateAll:
 # Caching
 # ---------------------------------------------------------------------------
 
+
 class MockCache(NullCache):
     def __init__(self):
         self.data = {}
@@ -183,6 +201,7 @@ class MockCache(NullCache):
     def set(self, key: str, value: bool, ttl: int | None = None):
         self.sets += 1
         self.data[key] = value
+
 
 class TestCaching:
     def test_cache_hit_path(self):
@@ -219,6 +238,7 @@ class TestCaching:
 # ---------------------------------------------------------------------------
 # Async engine
 # ---------------------------------------------------------------------------
+
 
 class TestAsyncFlagEngine:
     async def test_is_enabled_async(self):

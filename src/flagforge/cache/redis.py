@@ -147,7 +147,8 @@ class RedisCache(CacheBackend):
             cursor = 0
             while True:
                 cursor, batch = cast(
-                    tuple[int, list[str]], self._redis.scan(cursor, match=f"{prefix}*", count=100)
+                    tuple[int, list[str]],
+                    self._redis.scan(cursor, match=f"{prefix}*", count=100),
                 )
                 keys_to_delete.extend(
                     key_str for key_str in batch if key_str.startswith(flag_prefix)
@@ -174,7 +175,8 @@ class RedisCache(CacheBackend):
             cursor = 0
             while True:
                 cursor, batch = cast(
-                    tuple[int, list[str]], self._redis.scan(cursor, match=f"{prefix}*", count=100)
+                    tuple[int, list[str]],
+                    self._redis.scan(cursor, match=f"{prefix}*", count=100),
                 )
                 keys_to_delete.extend(key_str for key_str in batch if tenant_infix in key_str)
                 if cursor == 0:

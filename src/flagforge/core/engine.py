@@ -69,9 +69,7 @@ class FlagEngine:
 
         return result
 
-    def evaluate_many(
-        self, keys: list[str], context: FeatureContext
-    ) -> dict[str, bool]:
+    def evaluate_many(self, keys: list[str], context: FeatureContext) -> dict[str, bool]:
         """Evaluate multiple feature flags in a single round-trip.
 
         Unknown keys return False (not omitted, not raised).
@@ -153,9 +151,7 @@ class AsyncFlagEngine:
         cache: Async cache backend for evaluation results
     """
 
-    def __init__(
-        self, storage: BaseAsyncStorageBackend, cache: AsyncCacheBackend | None = None
-    ):
+    def __init__(self, storage: BaseAsyncStorageBackend, cache: AsyncCacheBackend | None = None):
         """Initialize the async flag engine.
 
         Args:
@@ -202,9 +198,7 @@ class AsyncFlagEngine:
 
         return result
 
-    async def evaluate_many(
-        self, keys: list[str], context: FeatureContext
-    ) -> dict[str, bool]:
+    async def evaluate_many(self, keys: list[str], context: FeatureContext) -> dict[str, bool]:
         """Evaluate multiple feature flags in a single round-trip.
 
         Unknown keys return False (not omitted, not raised).

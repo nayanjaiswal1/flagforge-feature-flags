@@ -20,6 +20,7 @@ def test_memory_storage_definitions():
     assert storage.get_definition("f1") is None
     assert len(storage.get_all_definitions()) == 1
 
+
 def test_memory_storage_overrides():
     storage = InMemoryStorage()
     o1 = TenantOverride(key="f1", tenant_id="t1", enabled=True)
@@ -40,6 +41,7 @@ def test_memory_storage_overrides():
 
     storage.delete_tenant_override("f1", "t1")
     assert storage.get_tenant_override("f1", "t1") is None
+
 
 @pytest.mark.asyncio
 async def test_async_memory_storage():
