@@ -143,15 +143,15 @@ class RedisCache(CacheBackend):
         try:
             prefix = self.key_prefix
             flag_prefix = f"{prefix}{flag_key}:"
-            keys_to_delete = []
+            keys_to_delete: list[str] = []
             cursor = 0
             while True:
                 cursor, batch = cast(
                     tuple[int, list[str]], self._redis.scan(cursor, match=f"{prefix}*", count=100)
                 )
-                for key_str in batch:
-                    if key_str.startswith(flag_prefix):
-                        keys_to_delete.append(key_str)
+                keys_to_delete.extend(
+                    key_str for key_str in batch if key_str.startswith(flag_prefix)
+                )
                 if cursor == 0:
                     break
             if keys_to_delete:
@@ -170,15 +170,13 @@ class RedisCache(CacheBackend):
         try:
             prefix = self.key_prefix
             tenant_infix = f":{tenant_id}:"
-            keys_to_delete = []
+            keys_to_delete: list[str] = []
             cursor = 0
             while True:
                 cursor, batch = cast(
                     tuple[int, list[str]], self._redis.scan(cursor, match=f"{prefix}*", count=100)
                 )
-                for key_str in batch:
-                    if tenant_infix in key_str:
-                        keys_to_delete.append(key_str)
+                keys_to_delete.extend(key_str for key_str in batch if tenant_infix in key_str)
                 if cursor == 0:
                     break
             if keys_to_delete:
@@ -308,7 +306,10 @@ class AsyncRedisCache(AsyncCacheBackend):
         keys = []
         cursor = 0
         while True:
-            cursor, batch = await self._redis.scan(cursor, match=f"{self.key_prefix}*", count=100)
+            cursor, batch = cast(
+                tuple[int, list[str]],
+                await self._redis.scan(cursor, match=f"{self.key_prefix}*", count=100),
+            )
             keys.extend([key for key in batch if predicate(key)])
             if cursor == 0:
                 break
@@ -325,13 +326,16 @@ class AsyncRedisCache(AsyncCacheBackend):
         try:
             prefix = self.key_prefix
             flag_prefix = f"{prefix}{flag_key}:"
-            keys_to_delete = []
+            keys_to_delete: list[str] = []
             cursor = 0
             while True:
-                cursor, batch = await self._redis.scan(cursor, match=f"{prefix}*", count=100)
-                for key_str in batch:
-                    if key_str.startswith(flag_prefix):
-                        keys_to_delete.append(key_str)
+                cursor, batch = cast(
+                    tuple[int, list[str]],
+                    await self._redis.scan(cursor, match=f"{prefix}*", count=100),
+                )
+                keys_to_delete.extend(
+                    key_str for key_str in batch if key_str.startswith(flag_prefix)
+                )
                 if cursor == 0:
                     break
             if keys_to_delete:
@@ -350,13 +354,14 @@ class AsyncRedisCache(AsyncCacheBackend):
         try:
             prefix = self.key_prefix
             tenant_infix = f":{tenant_id}:"
-            keys_to_delete = []
+            keys_to_delete: list[str] = []
             cursor = 0
             while True:
-                cursor, batch = await self._redis.scan(cursor, match=f"{prefix}*", count=100)
-                for key_str in batch:
-                    if tenant_infix in key_str:
-                        keys_to_delete.append(key_str)
+                cursor, batch = cast(
+                    tuple[int, list[str]],
+                    await self._redis.scan(cursor, match=f"{prefix}*", count=100),
+                )
+                keys_to_delete.extend(key_str for key_str in batch if tenant_infix in key_str)
                 if cursor == 0:
                     break
             if keys_to_delete:
