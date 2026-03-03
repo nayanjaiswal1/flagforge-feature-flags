@@ -46,7 +46,12 @@ async def test_fastapi_router_flow():
         # 1. Create a flag via admin
         resp = await ac.post(
             "/flags/admin/",
-            json={"key": "f1", "name": "F1", "is_public": True, "default_enabled": True},
+            json={
+                "key": "f1",
+                "name": "F1",
+                "is_public": True,
+                "default_enabled": True,
+            },
         )
         assert resp.status_code == 200
 

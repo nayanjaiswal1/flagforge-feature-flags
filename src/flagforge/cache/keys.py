@@ -5,7 +5,6 @@ If override has user/group targeting, uses user-specific keys.
 Otherwise, uses resolved keys to avoid per-user cache explosion.
 """
 
-
 from flagforge.core.models import TenantOverride
 
 
@@ -44,9 +43,7 @@ class CacheKeys:
         """
         if override is None:
             return False
-        return (
-            len(override.enabled_for_users) > 0 or len(override.enabled_for_groups) > 0
-        )
+        return len(override.enabled_for_users) > 0 or len(override.enabled_for_groups) > 0
 
     @classmethod
     def resolved_key(cls, tenant_id: str | None, flag_key: str) -> str:

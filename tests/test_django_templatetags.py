@@ -20,9 +20,9 @@ def test_is_flag_enabled_tag():
 
     get_engine()
 
-    out = Template(
-        "{% load flagforge %}" "{% is_flag_enabled 'f1' as f1_on %}" "{{ f1_on }}"
-    ).render(Context({"request": request}))
+    out = Template("{% load flagforge %}{% is_flag_enabled 'f1' as f1_on %}{{ f1_on }}").render(
+        Context({"request": request})
+    )
 
     assert out.strip() == "True"
 
@@ -35,7 +35,7 @@ def test_flag_enabled_filter():
     request = factory.get("/")
     request.tenant_id = "t1"
 
-    out = Template("{% load flagforge %}" "{{ request|flag_enabled_filter:'f1' }}").render(
+    out = Template("{% load flagforge %}{{ request|flag_enabled_filter:'f1' }}").render(
         Context({"request": request})
     )
 

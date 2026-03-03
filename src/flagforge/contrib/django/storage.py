@@ -1,6 +1,5 @@
 """Django storage backend for FlagForge."""
 
-
 from django.conf import settings
 
 from flagforge.core.exceptions import StorageError
@@ -23,9 +22,7 @@ class DjangoStorage(StorageBackend):
         Args:
             tenancy_mode: Either 'column' (default) or 'schema'
         """
-        self.tenancy_mode = tenancy_mode or getattr(
-            settings, "FLAGFORGE_TENANCY_MODE", "column"
-        )
+        self.tenancy_mode = tenancy_mode or getattr(settings, "FLAGFORGE_TENANCY_MODE", "column")
         if self.tenancy_mode not in ("column", "schema"):
             raise StorageError(
                 f"Invalid FLAGFORGE_TENANCY_MODE: {self.tenancy_mode}. "
@@ -48,9 +45,7 @@ class DjangoStorage(StorageBackend):
 
     def get_all_definitions(self) -> list[FlagDefinition]:
         """Get all flag definitions."""
-        return [
-            self._to_flag_definition(obj) for obj in FeatureFlagDefinition.objects.all()
-        ]
+        return [self._to_flag_definition(obj) for obj in FeatureFlagDefinition.objects.all()]
 
     def get_tenant_override(self, key: str, tenant_id: str) -> TenantOverride | None:
         """Get tenant-specific override for a flag."""

@@ -25,16 +25,13 @@ jobs:
           cache: pip
 
       - name: Install linting tools
-        run: pip install ruff black
+        run: pip install ruff
 
       - name: ruff — lint
         run: ruff check src/ tests/
 
       - name: ruff — format check
         run: ruff format --check src/ tests/
-
-      - name: black — format check
-        run: black --check src/ tests/
 
   # ── 2. Type Check ────────────────────────────────────────────────────────────
   typecheck:
@@ -51,7 +48,7 @@ jobs:
       - name: Install package + type stubs
         run: |
           pip install -e ".[dev,django,fastapi,redis]"
-          pip install types-PyYAML types-redis
+          pip install types-PyYAML types-redis fakeredis
 
       - name: mypy
         run: mypy src/flagforge --pretty --show-error-codes
@@ -77,7 +74,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -e ".[dev,django,fastapi,redis]"
-          pip install aiosqlite
+          pip install aiosqlite fakeredis httpx
 
       - name: Run tests with coverage
         run: |

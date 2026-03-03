@@ -130,7 +130,7 @@ class AsyncSQLAlchemyStorage(AsyncStorageBackend):
                     is_public=defn.is_public,
                     rollout_percentage=defn.rollout_percentage,
                     deprecated=defn.deprecated,
-                    environments=json.dumps(defn.environments) if defn.environments else None,
+                    environments=(json.dumps(defn.environments) if defn.environments else None),
                 )
                 session.add(orm_obj)
 

@@ -98,9 +98,7 @@ class AsyncInMemoryStorage(AsyncStorageBackend):
         await asyncio.sleep(0)  # Simulate async I/O
         return list(self._definitions.values())
 
-    async def get_tenant_override(
-        self, key: str, tenant_id: str
-    ) -> TenantOverride | None:
+    async def get_tenant_override(self, key: str, tenant_id: str) -> TenantOverride | None:
         """Retrieve a tenant-specific override for a flag."""
         await asyncio.sleep(0)  # Simulate async I/O
         return self._overrides.get(self._override_key(key, tenant_id))

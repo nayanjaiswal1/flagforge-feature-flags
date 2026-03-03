@@ -1,5 +1,6 @@
 """Tests for the resolution logic."""
 
+from typing import Any
 
 from flagforge.core.context import FeatureContext
 from flagforge.core.models import FlagDefinition, TenantOverride
@@ -7,19 +8,19 @@ from flagforge.core.resolver import resolve
 
 
 def defn(**kwargs) -> FlagDefinition:
-    defaults = {"key": "f", "name": "F", "default_enabled": False}
+    defaults: dict[str, Any] = {"key": "f", "name": "F", "default_enabled": False}
     defaults.update(kwargs)
     return FlagDefinition(**defaults)
 
 
 def override(**kwargs) -> TenantOverride:
-    defaults = {"key": "f", "tenant_id": "t1"}
+    defaults: dict[str, Any] = {"key": "f", "tenant_id": "t1"}
     defaults.update(kwargs)
     return TenantOverride(**defaults)
 
 
 def ctx(**kwargs) -> FeatureContext:
-    defaults = {"tenant_id": "t1"}
+    defaults: dict[str, Any] = {"tenant_id": "t1"}
     defaults.update(kwargs)
     return FeatureContext(**defaults)
 

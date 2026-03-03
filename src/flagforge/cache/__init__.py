@@ -22,14 +22,17 @@ def __getattr__(name: str):
     """Lazy-import classes to avoid circular dependencies and optional dependencies."""
     if name in ("RedisCache", "AsyncRedisCache"):
         from flagforge.cache.redis import AsyncRedisCache, RedisCache
+
         return {"RedisCache": RedisCache, "AsyncRedisCache": AsyncRedisCache}[name]
 
     if name in ("LocalCache", "AsyncLocalCache"):
         from flagforge.cache.local import AsyncLocalCache, LocalCache
+
         return {"LocalCache": LocalCache, "AsyncLocalCache": AsyncLocalCache}[name]
 
     if name in ("NullCache", "AsyncNullCache"):
         from flagforge.cache.null import AsyncNullCache, NullCache
+
         return {"NullCache": NullCache, "AsyncNullCache": AsyncNullCache}[name]
 
     raise AttributeError(f"module 'flagforge.cache' has no attribute {name!r}")

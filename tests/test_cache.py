@@ -15,6 +15,7 @@ def test_null_cache():
     cache.delete_for_tenant("t")
     cache.clear_request_cache()
 
+
 @pytest.mark.asyncio
 async def test_async_null_cache():
     cache = AsyncNullCache()
@@ -25,6 +26,7 @@ async def test_async_null_cache():
     await cache.delete_for_flag("f")
     await cache.delete_for_tenant("t")
     await cache.clear_request_cache()
+
 
 def test_local_cache_isolation():
     cache = LocalCache()
@@ -40,6 +42,7 @@ def test_local_cache_isolation():
 
     # After context, should be None again
     assert cache.get("k1") is None
+
 
 def test_local_cache_deletion():
     cache = LocalCache()
@@ -74,6 +77,7 @@ def test_local_cache_deletion():
         cache.set("a", True)
         cache.clear_request_cache()
         assert cache.get("a") is None
+
 
 @pytest.mark.asyncio
 async def test_async_local_cache():

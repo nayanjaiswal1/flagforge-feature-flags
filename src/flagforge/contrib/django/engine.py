@@ -1,6 +1,5 @@
 """Django engine singleton and utilities for FlagForge."""
 
-
 from django.conf import settings
 from django.http import HttpRequest
 

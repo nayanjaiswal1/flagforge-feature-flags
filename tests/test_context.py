@@ -13,10 +13,11 @@ def test_request_context_sync():
 
     with request_context() as cache:
         assert get_request_cache() is cache
-        cache['foo'] = 'bar'
-        assert get_request_cache()['foo'] == 'bar'
+        cache["foo"] = "bar"
+        assert get_request_cache()["foo"] == "bar"
 
     assert get_request_cache() is None
+
 
 @pytest.mark.asyncio
 async def test_request_context_async():
@@ -24,10 +25,11 @@ async def test_request_context_async():
 
     async with async_request_context() as cache:
         assert get_request_cache() is cache
-        cache['foo'] = 'bar'
-        assert get_request_cache()['foo'] == 'bar'
+        cache["foo"] = "bar"
+        assert get_request_cache()["foo"] == "bar"
 
     assert get_request_cache() is None
+
 
 def test_feature_context_defaults():
     ctx = FeatureContext()
@@ -37,13 +39,14 @@ def test_feature_context_defaults():
     assert ctx.environment is None
     assert ctx.attributes == {}
 
+
 def test_feature_context_custom_values():
     ctx = FeatureContext(
         tenant_id="t1",
         user_id="u1",
         group_ids=["g1"],
         environment="prod",
-        attributes={"attr1": "val1"}
+        attributes={"attr1": "val1"},
     )
     assert ctx.tenant_id == "t1"
     assert ctx.user_id == "u1"

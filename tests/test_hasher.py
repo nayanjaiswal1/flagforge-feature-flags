@@ -12,6 +12,7 @@ def test_compute_bucket_determinism():
     assert bucket1 == bucket2
     assert 0 <= bucket1 < 100
 
+
 def test_compute_bucket_different_inputs():
     tenant_id = "tenant-1"
     flag_key = "new-feature"
@@ -23,6 +24,7 @@ def test_compute_bucket_different_inputs():
     # We just want to ensure the input actually affects the output.
     assert bucket1 != compute_bucket(tenant_id, "other-flag", "user-1")
 
+
 def test_compute_bucket_anonymous_user():
     tenant_id = "tenant-1"
     flag_key = "new-feature"
@@ -32,6 +34,7 @@ def test_compute_bucket_anonymous_user():
 
     assert bucket1 == bucket2
     assert 0 <= bucket1 < 100
+
 
 def test_evaluate_rollout_edge_cases():
     tenant_id = "t1"
@@ -45,6 +48,7 @@ def test_evaluate_rollout_edge_cases():
     # 100% should always be True
     assert evaluate_rollout(tenant_id, flag_key, user_id, 100) is True
     assert evaluate_rollout(tenant_id, flag_key, user_id, 110) is True
+
 
 def test_evaluate_rollout_distribution():
     tenant_id = "t1"
@@ -61,6 +65,7 @@ def test_evaluate_rollout_distribution():
     # Standard deviation for binomial(1000, 0.5) is sqrt(1000 * 0.5 * 0.5) approx 15.8
     # 500 +/- 50 is a very safe range for a deterministic test.
     assert 450 <= count_enabled <= 550
+
 
 def test_evaluate_rollout_consistency():
     # Same user, same flag, same percentage -> same result
