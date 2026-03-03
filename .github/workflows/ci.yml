@@ -25,16 +25,13 @@ jobs:
           cache: pip
 
       - name: Install linting tools
-        run: pip install ruff black
+        run: pip install ruff
 
       - name: ruff — lint
         run: ruff check src/ tests/
 
       - name: ruff — format check
         run: ruff format --check src/ tests/
-
-      - name: black — format check
-        run: black --check src/ tests/
 
   # ── 2. Type Check ────────────────────────────────────────────────────────────
   typecheck:
