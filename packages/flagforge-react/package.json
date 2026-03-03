@@ -1,0 +1,65 @@
+{
+  "name": "flagforge-react",
+  "version": "1.0.0",
+  "description": "React hooks and components for FlagForge feature flags",
+  "author": "Nayan Jaiswal <jaiswal2062@gmail.com>",
+  "license": "MIT",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "keywords": [
+    "feature-flags",
+    "feature-toggles",
+    "react",
+    "flagforge",
+    "react-query",
+    "tanstack-query"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nayanjaiswal1/flagforge-feature-flags.git"
+  },
+  "bugs": {
+    "url": "https://github.com/nayanjaiswal1/flagforge-feature-flags/issues"
+  },
+  "homepage": "https://github.com/nayanjaiswal1/flagforge-feature-flags/blob/main/packages/flagforge-react/README.md",
+  "peerDependencies": {
+    "@tanstack/react-query": ">=5.0.0",
+    "react": ">=17.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@tanstack/react-query": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@tanstack/react-query": "^5.90.21",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/react": "^18.3.28",
+    "@types/react-dom": "^18.3.7",
+    "jsdom": "^28.1.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0",
+    "vitest": "^4.0.18"
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest"
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "recommendations": [
+    "charliermarsh.ruff",
+    "ms-python.python",
+    "ms-python.mypy-type-checker",
+    "ms-python.vscode-pylance",
+    "snyk-security.snyk-vulnerability-scanner",
+    "SonarSource.sonarlint-vscode",
+    "littlefoxteam.vscode-python-test-adapter",
+    "esbenp.prettier-vscode",
+    "dbaeumer.vscode-eslint",
+    "EditorConfig.EditorConfig",
+    "redhat.vscode-yaml",
+    "tamasfe.even-better-toml",
+    "yzhang.markdown-all-in-one",
+    "streetsidesoftware.code-spell-checker",
+    "ms-vscode.vscode-typescript-next",
+    "eamodio.gitlens",
+    "mhutchie.git-graph"
+  ],
+  "unwantedRecommendations": [
+    "ms-python.pylint"
+  ]
+}

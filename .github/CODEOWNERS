@@ -1,0 +1,11 @@
+# All files — Nayan Jaiswal is the default reviewer
+* @nayanjaiswal1
+
+# Core engine — stricter review
+src/flagforge/core/ @nayanjaiswal1
+src/flagforge/storage/ @nayanjaiswal1
+src/flagforge/cache/ @nayanjaiswal1
+
+# CI / security pipelines — always needs review
+.github/ @nayanjaiswal1
+pyproject.toml @nayanjaiswal1

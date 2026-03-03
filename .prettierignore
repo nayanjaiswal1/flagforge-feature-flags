@@ -1,0 +1,8 @@
+venv/
+dist/
+build/
+node_modules/
+*.egg-info/
+coverage.xml
+htmlcov/
+.secrets.baseline

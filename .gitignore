@@ -1,0 +1,86 @@
+# ── Python ──────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+MANIFEST
+
+# Virtual environments
+venv/
+.venv/
+env/
+.env/
+
+# Distribution / packaging
+*.whl
+
+# pytest / coverage
+.pytest_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.tox/
+
+# mypy
+.mypy_cache/
+*.pyi.bak
+
+# ruff
+.ruff_cache/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Environments
+.env
+.env.local
+.env.*.local
+
+# ── Node / React ─────────────────────────────────────────────────────────────
+node_modules/
+packages/*/node_modules/
+packages/*/dist/
+packages/*/.turbo/
+*.tsbuildinfo
+
+# pnpm
+.pnpm-debug.log*
+pnpm-lock.yaml
+
+# npm
+package-lock.json
+npm-debug.log*
+yarn-error.log
+
+# ── Editor ───────────────────────────────────────────────────────────────────
+.idea/
+# Track shared VS Code config (settings, extensions, launch) but not personal files
+!.vscode/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ── Planning / scratch ───────────────────────────────────────────────────────
+.planning/
+plan.md
+
+# ── Claude Code ──────────────────────────────────────────────────────────────
+.claude/
+
+# ── Local config (never commit secrets) ─────────────────────────────────────
+*.local
+local_settings.py
+db.sqlite3
+*.sqlite3

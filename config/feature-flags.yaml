@@ -1,0 +1,17 @@
+flags:
+  example_feature:
+    name: Example Feature
+    description: An example feature flag
+    default_enabled: false
+    is_public: false
+    rollout_percentage: 0
+
+  beta_dashboard:
+    name: Beta Dashboard
+    description: New dashboard design
+    default_enabled: false
+    is_public: true
+    rollout_percentage: 10
+    environments:
+      - staging
+      - production

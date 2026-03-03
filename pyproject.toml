@@ -1,0 +1,236 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "flagforge"
+version = "1.0.0"
+description = "Enterprise multi-tenant feature flag library for Django and FastAPI"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "Nayan Jaiswal", email = "jaiswal2062@gmail.com"}
+]
+keywords = [
+    "feature-flags",
+    "feature-toggles",
+    "feature-switch",
+    "multi-tenant",
+    "django",
+    "fastapi",
+    "launchdarkly",
+    "unleash",
+    "gradual-rollout",
+    "a-b-testing",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+    "Topic :: Internet :: WWW/HTTP",
+    "Framework :: Django",
+    "Framework :: FastAPI",
+    "Typing :: Typed",
+]
+dependencies = [
+    "mmh3>=4.0",
+    "pydantic>=2.0",
+    "click>=8.0",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+django = [
+    "django>=4.2",
+    "djangorestframework>=3.14",
+]
+fastapi = [
+    "fastapi>=0.100",
+    "sqlalchemy[asyncio]>=2.0",
+    "asyncpg>=0.29",
+    "pydantic-settings>=2.0",
+]
+redis = [
+    "redis>=5.0",
+]
+all = [
+    "django>=4.2",
+    "djangorestframework>=3.14",
+    "fastapi>=0.100",
+    "sqlalchemy[asyncio]>=2.0",
+    "asyncpg>=0.29",
+    "pydantic-settings>=2.0",
+    "redis>=5.0",
+]
+dev = [
+    "pytest>=7.0",
+    "pytest-django>=4.5",
+    "pytest-asyncio>=0.21",
+    "pytest-cov>=4.0",
+    "coverage>=7.0",
+    "mypy>=1.0",
+    "types-PyYAML",
+    "types-redis",
+    "ruff>=0.4",
+    "black>=24.0",
+    "pre-commit>=3.0",
+    "aiosqlite>=0.19",
+    # security
+    "bandit[toml]>=1.7",
+    "pip-audit>=2.7",
+    "detect-secrets>=1.4",
+]
+
+[project.scripts]
+flagforge = "flagforge.cli.main:cli"
+
+[project.urls]
+Homepage = "https://github.com/nayanjaiswal1/flagforge-feature-flags"
+Documentation = "https://github.com/nayanjaiswal1/flagforge-feature-flags/blob/master/README.md"
+Repository = "https://github.com/nayanjaiswal1/flagforge-feature-flags"
+"Bug Tracker" = "https://github.com/nayanjaiswal1/flagforge-feature-flags/issues"
+Changelog = "https://github.com/nayanjaiswal1/flagforge-feature-flags/blob/master/CHANGELOG.md"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+flagforge = ["py.typed"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "N",    # pep8-naming
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "C4",   # flake8-comprehensions
+    "S",    # flake8-bandit (security)
+    "SIM",  # flake8-simplify
+    "ERA",  # eradicate (commented-out code)
+    "PL",   # pylint
+    "PERF", # perflint
+    "RUF",  # ruff-specific rules
+]
+ignore = [
+    "E501",    # line too long — handled by formatter
+    "S101",    # assert in tests is fine
+    "S311",    # standard pseudo-random is fine for non-crypto use
+    "PLR0913", # too many arguments — subjective
+    "PLR2004", # magic value comparisons — too noisy
+    "B008",    # function call in default argument — standard FastAPI Depends
+    "PLC0415", # lazy imports — standard for optional dependencies
+    "RUF012",  # mutable class attributes — too many false positives in Django/Pydantic
+    "PLW0603", # global statement — used for singleton engines
+    "PLR0911", # too many return statements — necessary for complex resolution
+    "B904",    # raise from — already fixed most, but some are fine without it
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = [
+    "S",       # no security rules in tests
+    "ANN",     # no annotation rules in tests
+    "PLR",     # relax pylint in tests
+]
+"src/flagforge/contrib/django/migrations/*.py" = [
+    "N",       # migration naming conventions
+    "E501",
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["flagforge"]
+force-sort-within-sections = true
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+docstring-code-format = true
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+disallow_untyped_defs = false
+ignore_missing_imports = true
+no_implicit_optional = true
+strict_equality = true
+
+[[tool.mypy.overrides]]
+module = "flagforge.contrib.django.*"
+ignore_errors = true   # Django ORM types are complex; covered by pytest-django
+
+[[tool.mypy.overrides]]
+module = "flagforge.contrib.fastapi.*"
+ignore_errors = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+asyncio_mode = "auto"
+addopts = "-ra -q --tb=short"
+
+[tool.pytest.ini_options.markers]
+slow = "marks tests as slow (deselect with '-m \"not slow\"')"
+integration = "marks tests requiring a live database/redis"
+
+[tool.coverage.run]
+source = ["flagforge"]
+branch = true
+omit = [
+    "*/tests/*",
+    "*/test_*.py",
+    "*/migrations/*",
+    "*/contrib/django/admin.py",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+fail_under = 80
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "@(abc\\.)?abstractmethod",
+]
+
+[tool.coverage.html]
+directory = "htmlcov"
+
+# ── Bandit security scanner ──────────────────────────────────────────────────
+[tool.bandit]
+targets = ["src/flagforge"]
+skips = [
+    "B101",  # assert — fine in library code, tests excluded
+    "B311",  # random — not used for crypto in this project
+]
+exclude_dirs = [
+    "tests",
+    "venv",
+    ".venv",
+    "src/flagforge/contrib/django/migrations",
+]
+severity = "medium"   # report medium+ severity issues

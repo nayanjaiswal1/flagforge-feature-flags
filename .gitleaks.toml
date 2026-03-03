@@ -1,0 +1,17 @@
+title = "FlagForge gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Allow test/example strings that look like secrets"
+regexes = [
+    '''user:pass@localhost''',
+    '''postgresql\+asyncpg://user:pass''',
+    '''redis://localhost''',
+]
+paths = [
+    '''docs/.*\.md''',
+    '''README\.md''',
+    '''packages/flagforge-react/.*''',
+]
