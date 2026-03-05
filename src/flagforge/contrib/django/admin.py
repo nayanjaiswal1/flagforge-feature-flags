@@ -2,12 +2,12 @@
 
 from django.contrib import admin
 
-from .models import FeatureFlagDefinition, TenantFeatureFlag
+from .models import FeatureFlagDefinition, TenantFeatureFlag, TenantFlagOverride
 
 
 @admin.register(FeatureFlagDefinition)
 class PublicFlagAdmin(admin.ModelAdmin):
-    """Admin for global feature flag definitions."""
+    """Admin for global feature flag definitions (shared/public schema)."""
 
     list_display = [
         "key",
@@ -24,9 +24,18 @@ class PublicFlagAdmin(admin.ModelAdmin):
 
 @admin.register(TenantFeatureFlag)
 class TenantFlagAdmin(admin.ModelAdmin):
-    """Admin for tenant-specific flag overrides."""
+    """Admin for tenant flag overrides — column / schema mode."""
 
     list_display = ["key", "tenant_id", "enabled", "rollout_percentage"]
     list_filter = ["tenant_id"]
     search_fields = ["key__key", "tenant_id"]
     ordering = ["tenant_id", "key"]
+
+
+@admin.register(TenantFlagOverride)
+class TenantFlagOverrideAdmin(admin.ModelAdmin):
+    """Admin for tenant flag overrides — hybrid mode (lives in tenant schema)."""
+
+    list_display = ["key", "enabled", "rollout_percentage", "updated_at", "updated_by"]
+    search_fields = ["key__key"]
+    ordering = ["key"]

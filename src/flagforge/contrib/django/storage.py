@@ -6,37 +6,44 @@ from flagforge.core.exceptions import StorageError
 from flagforge.core.models import FlagDefinition, TenantOverride
 from flagforge.storage.base import StorageBackend
 
-from .models import FeatureFlagDefinition, TenantFeatureFlag
+from .models import FeatureFlagDefinition, TenantFeatureFlag, TenantFlagOverride
+
+_VALID_MODES = ("column", "schema", "hybrid")
 
 
 class DjangoStorage(StorageBackend):
     """Django ORM-based storage backend for feature flags.
 
-    Supports both column-based and schema-based multi-tenancy.
-    Configure via FLAGFORGE_TENANCY_MODE setting.
+    Supports three multi-tenancy modes via FLAGFORGE_TENANCY_MODE:
+
+    - 'column'  (default): Both models in the same schema. tenant_id column
+                           discriminates between tenants. Works with any Django
+                           setup, no extra routing needed.
+
+    - 'schema':            TenantFeatureFlag lives in a per-tenant schema managed
+                           by django-tenants. tenant_id column is still present
+                           for compatibility but the schema provides isolation.
+
+    - 'hybrid':            Hybrid Gold Standard.
+                           FeatureFlagDefinition  → public/shared schema (control plane)
+                           TenantFlagOverride     → each tenant's private schema
+                           No tenant_id column on overrides — schema routing is the
+                           sole source of isolation. Strict data residency.
     """
 
     def __init__(self, tenancy_mode: str | None = None):
-        """Initialize Django storage.
-
-        Args:
-            tenancy_mode: Either 'column' (default) or 'schema'
-        """
         self.tenancy_mode = tenancy_mode or getattr(settings, "FLAGFORGE_TENANCY_MODE", "column")
-        if self.tenancy_mode not in ("column", "schema"):
+        if self.tenancy_mode not in _VALID_MODES:
             raise StorageError(
-                f"Invalid FLAGFORGE_TENANCY_MODE: {self.tenancy_mode}. "
-                "Must be 'column' or 'schema'."
+                f"Invalid FLAGFORGE_TENANCY_MODE: {self.tenancy_mode!r}. "
+                f"Must be one of {_VALID_MODES}."
             )
 
-    def _get_queryset(self, tenant_id: str):
-        """Get filtered queryset based on tenancy mode."""
-        if self.tenancy_mode in {"column", "schema"}:
-            return TenantFeatureFlag.objects.filter(tenant_id=tenant_id)
-        raise StorageError(f"Unknown tenancy mode: {self.tenancy_mode}")
+    # ------------------------------------------------------------------
+    # Definitions  (always go through FeatureFlagDefinition)
+    # ------------------------------------------------------------------
 
     def get_definition(self, key: str) -> FlagDefinition | None:
-        """Get a flag definition by key."""
         try:
             obj = FeatureFlagDefinition.objects.get(key=key)
             return self._to_flag_definition(obj)
@@ -44,27 +51,10 @@ class DjangoStorage(StorageBackend):
             return None
 
     def get_all_definitions(self) -> list[FlagDefinition]:
-        """Get all flag definitions."""
         return [self._to_flag_definition(obj) for obj in FeatureFlagDefinition.objects.all()]
 
-    def get_tenant_override(self, key: str, tenant_id: str) -> TenantOverride | None:
-        """Get tenant-specific override for a flag."""
-        try:
-            obj = TenantFeatureFlag.objects.get(key__key=key, tenant_id=tenant_id)
-            return self._to_tenant_override(obj)
-        except TenantFeatureFlag.DoesNotExist:
-            return None
-
-    def get_all_tenant_overrides(self, tenant_id: str) -> list[TenantOverride]:
-        """Get all overrides for a tenant."""
-        return [
-            self._to_tenant_override(obj)
-            for obj in self._get_queryset(tenant_id).select_related("key")
-        ]
-
     def upsert_definition(self, defn: FlagDefinition) -> None:
-        """Create or update a flag definition."""
-        _obj, _ = FeatureFlagDefinition.objects.update_or_create(
+        FeatureFlagDefinition.objects.update_or_create(
             key=defn.key,
             defaults={
                 "name": defn.name,
@@ -77,8 +67,51 @@ class DjangoStorage(StorageBackend):
             },
         )
 
+    def delete_definition(self, key: str) -> None:
+        FeatureFlagDefinition.objects.filter(key=key).delete()
+
+    # ------------------------------------------------------------------
+    # Overrides  (routed by tenancy_mode)
+    # ------------------------------------------------------------------
+
+    def get_tenant_override(self, key: str, tenant_id: str) -> TenantOverride | None:
+        if self.tenancy_mode == "hybrid":
+            return self._hybrid_get_override(key, tenant_id)
+        return self._column_get_override(key, tenant_id)
+
+    def get_all_tenant_overrides(self, tenant_id: str) -> list[TenantOverride]:
+        if self.tenancy_mode == "hybrid":
+            return self._hybrid_get_all_overrides(tenant_id)
+        return self._column_get_all_overrides(tenant_id)
+
     def upsert_tenant_override(self, override: TenantOverride) -> None:
-        """Create or update a tenant override."""
+        if self.tenancy_mode == "hybrid":
+            self._hybrid_upsert_override(override)
+        else:
+            self._column_upsert_override(override)
+
+    def delete_tenant_override(self, key: str, tenant_id: str) -> None:
+        if self.tenancy_mode == "hybrid":
+            self._hybrid_delete_override(key)
+        else:
+            TenantFeatureFlag.objects.filter(key__key=key, tenant_id=tenant_id).delete()
+
+    # ------------------------------------------------------------------
+    # Column / schema mode helpers  (TenantFeatureFlag)
+    # ------------------------------------------------------------------
+
+    def _column_get_override(self, key: str, tenant_id: str) -> TenantOverride | None:
+        try:
+            obj = TenantFeatureFlag.objects.get(key__key=key, tenant_id=tenant_id)
+            return self._to_tenant_override_from_column(obj)
+        except TenantFeatureFlag.DoesNotExist:
+            return None
+
+    def _column_get_all_overrides(self, tenant_id: str) -> list[TenantOverride]:
+        qs = TenantFeatureFlag.objects.filter(tenant_id=tenant_id).select_related("key")
+        return [self._to_tenant_override_from_column(obj) for obj in qs]
+
+    def _column_upsert_override(self, override: TenantOverride) -> None:
         flag = FeatureFlagDefinition.objects.get(key=override.key)
         TenantFeatureFlag.objects.update_or_create(
             key=flag,
@@ -92,16 +125,43 @@ class DjangoStorage(StorageBackend):
             },
         )
 
-    def delete_tenant_override(self, key: str, tenant_id: str) -> None:
-        """Delete a tenant override."""
-        TenantFeatureFlag.objects.filter(key__key=key, tenant_id=tenant_id).delete()
+    # ------------------------------------------------------------------
+    # Hybrid mode helpers  (TenantFlagOverride — no tenant_id)
+    # ------------------------------------------------------------------
 
-    def delete_definition(self, key: str) -> None:
-        """Delete a flag definition and all its tenant overrides."""
-        FeatureFlagDefinition.objects.filter(key=key).delete()
+    def _hybrid_get_override(self, key: str, tenant_id: str) -> TenantOverride | None:
+        """In hybrid mode, the active schema IS the tenant — tenant_id unused for lookup."""
+        try:
+            obj = TenantFlagOverride.objects.select_related("key").get(key__key=key)
+            return self._to_tenant_override_from_hybrid(obj, tenant_id)
+        except TenantFlagOverride.DoesNotExist:
+            return None
+
+    def _hybrid_get_all_overrides(self, tenant_id: str) -> list[TenantOverride]:
+        qs = TenantFlagOverride.objects.select_related("key").all()
+        return [self._to_tenant_override_from_hybrid(obj, tenant_id) for obj in qs]
+
+    def _hybrid_upsert_override(self, override: TenantOverride) -> None:
+        flag = FeatureFlagDefinition.objects.get(key=override.key)
+        TenantFlagOverride.objects.update_or_create(
+            key=flag,
+            defaults={
+                "enabled": override.enabled,
+                "rollout_percentage": override.rollout_percentage,
+                "enabled_for_users": override.enabled_for_users,
+                "enabled_for_groups": override.enabled_for_groups,
+                "updated_by": override.updated_by,
+            },
+        )
+
+    def _hybrid_delete_override(self, key: str) -> None:
+        TenantFlagOverride.objects.filter(key__key=key).delete()
+
+    # ------------------------------------------------------------------
+    # Converters
+    # ------------------------------------------------------------------
 
     def _to_flag_definition(self, obj: FeatureFlagDefinition) -> FlagDefinition:
-        """Convert ORM model to FlagDefinition."""
         return FlagDefinition(
             key=obj.key,
             name=obj.name,
@@ -115,8 +175,7 @@ class DjangoStorage(StorageBackend):
             updated_at=obj.updated_at,
         )
 
-    def _to_tenant_override(self, obj: TenantFeatureFlag) -> TenantOverride:
-        """Convert ORM model to TenantOverride."""
+    def _to_tenant_override_from_column(self, obj: TenantFeatureFlag) -> TenantOverride:
         return TenantOverride(
             key=obj.key.key,
             tenant_id=obj.tenant_id,
@@ -128,12 +187,23 @@ class DjangoStorage(StorageBackend):
             updated_by=obj.updated_by,
         )
 
+    def _to_tenant_override_from_hybrid(
+        self, obj: TenantFlagOverride, tenant_id: str
+    ) -> TenantOverride:
+        return TenantOverride(
+            key=obj.key.key,
+            tenant_id=tenant_id,  # injected from context — not stored in the row
+            enabled=obj.enabled,
+            rollout_percentage=obj.rollout_percentage,
+            enabled_for_users=obj.enabled_for_users or [],
+            enabled_for_groups=obj.enabled_for_groups or [],
+            updated_at=obj.updated_at,
+            updated_by=obj.updated_by,
+        )
+
 
 class DjangoStorageAdapter:
-    """Adapter for Django storage to FlagEngine interface.
-
-    This provides the interface expected by FlagEngine.
-    """
+    """Adapter for Django storage to FlagEngine interface."""
 
     def __init__(self, tenancy_mode: str | None = None):
         self._storage = DjangoStorage(tenancy_mode)
