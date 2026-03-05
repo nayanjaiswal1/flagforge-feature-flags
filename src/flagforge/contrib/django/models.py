@@ -8,6 +8,9 @@ class FeatureFlagDefinition(models.Model):
 
     This model stores the base flag configuration that applies
     across all tenants unless overridden.
+
+    In hybrid mode this lives in the public/shared schema (SHARED_APPS).
+    In column mode it lives in the same schema as TenantFeatureFlag.
     """
 
     key = models.CharField(max_length=255, unique=True, db_index=True)
@@ -34,10 +37,11 @@ class FeatureFlagDefinition(models.Model):
 
 
 class TenantFeatureFlag(models.Model):
-    """Tenant-specific override for a feature flag.
+    """Tenant-specific override for a feature flag — column / schema modes.
 
-    This model stores tenant-specific overrides that modify the
-    base flag behavior for a specific tenant.
+    Used when FLAGFORGE_TENANCY_MODE is 'column' or 'schema'.
+    The tenant_id column discriminates between tenants (column mode),
+    or the model lives in a per-tenant schema (schema mode).
     """
 
     key = models.ForeignKey(
@@ -79,3 +83,60 @@ class TenantFeatureFlag(models.Model):
 
     def __str__(self):
         return f"{self.key.key} for {self.tenant_id}"
+
+
+class TenantFlagOverride(models.Model):
+    """Tenant-specific override for a feature flag — hybrid mode.
+
+    Used when FLAGFORGE_TENANCY_MODE is 'hybrid'.
+
+    In hybrid mode this model lives in each tenant's private schema
+    (django-tenants TENANT_APPS). There is no tenant_id column — schema
+    routing provides the isolation. FeatureFlagDefinition (the definition)
+    stays in the shared/public schema, giving you a single control plane.
+
+    This is the "Hybrid Gold Standard":
+      - Definitions   → public schema  (one place to manage all flags)
+      - Overrides     → tenant schema  (strict per-tenant data residency)
+    """
+
+    key = models.ForeignKey(
+        FeatureFlagDefinition,
+        on_delete=models.CASCADE,
+        related_name="hybrid_overrides",
+        db_constraint=False,  # FK crosses schema boundary in django-tenants
+    )
+    enabled = models.BooleanField(
+        null=True,
+        blank=True,
+        help_text="Override enabled state (None = use definition default)",
+    )
+    rollout_percentage = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Override rollout percentage (None = use definition default)",
+    )
+    enabled_for_users = models.JSONField(
+        default=list,
+        help_text="List of user IDs explicitly enabled for this flag",
+    )
+    enabled_for_groups = models.JSONField(
+        default=list,
+        help_text="List of group IDs enabled for this flag",
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+    updated_by = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        help_text="User who last updated this override",
+    )
+
+    class Meta:
+        db_table = "tenant_flag_override"
+        # Unique per flag within the tenant's schema (no tenant_id needed)
+        unique_together = [["key"]]
+        ordering = ["key"]
+
+    def __str__(self):
+        return f"override for {self.key.key}"

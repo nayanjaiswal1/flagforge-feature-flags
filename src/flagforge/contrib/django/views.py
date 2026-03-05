@@ -1,30 +1,32 @@
 """Django REST Framework views for FlagForge."""
 
+import importlib
+
 from rest_framework import status, viewsets
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny, IsAdminUser
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
+from flagforge.contrib.django import conf
 from flagforge.core.context import FeatureContext
 
 from .models import FeatureFlagDefinition, TenantFeatureFlag
 from .serializers import FlagDefinitionSerializer, TenantOverrideSerializer
 
-_engine = None
+
+def _get_admin_permission_class():
+    """Load the admin permission class from FLAGFORGE_ADMIN_PERMISSION setting."""
+    dotted = conf.admin_permission()
+    module_path, class_name = dotted.rsplit(".", 1)
+    module = importlib.import_module(module_path)
+    return getattr(module, class_name)
 
 
 def _get_engine():
     """Get or create a singleton FlagEngine instance."""
-    global _engine
-    if _engine is None:
-        from flagforge.cache import LocalCache
-        from flagforge.contrib.django.storage import DjangoStorageAdapter
-        from flagforge.core.engine import FlagEngine
+    from flagforge.contrib.django.engine import get_engine
 
-        storage = DjangoStorageAdapter()
-        cache = LocalCache()
-        _engine = FlagEngine(storage=storage, cache=cache)
-    return _engine
+    return get_engine()
 
 
 class FlagViewSet(viewsets.ModelViewSet):
@@ -32,8 +34,10 @@ class FlagViewSet(viewsets.ModelViewSet):
 
     queryset = FeatureFlagDefinition.objects.all()
     serializer_class = FlagDefinitionSerializer
-    permission_classes = [IsAdminUser]
     lookup_field = "key"
+
+    def get_permissions(self):
+        return [_get_admin_permission_class()()]
 
 
 class TenantOverrideViewSet(viewsets.ModelViewSet):
@@ -41,7 +45,9 @@ class TenantOverrideViewSet(viewsets.ModelViewSet):
 
     queryset = TenantFeatureFlag.objects.all()
     serializer_class = TenantOverrideSerializer
-    permission_classes = [IsAdminUser]
+
+    def get_permissions(self):
+        return [_get_admin_permission_class()()]
 
 
 @api_view(["GET"])
@@ -77,18 +83,23 @@ def flag_list(request):
 
 
 @api_view(["GET"])
-@permission_classes([IsAdminUser])
 def admin_flag_list(request):
     """List all raw flag definitions (admin only)."""
+    perm = _get_admin_permission_class()()
+    if not perm.has_permission(request, None):
+        return Response(status=status.HTTP_403_FORBIDDEN)
     flags = FeatureFlagDefinition.objects.all()
     serializer = FlagDefinitionSerializer(flags, many=True)
     return Response(serializer.data)
 
 
 @api_view(["GET", "PUT", "DELETE"])
-@permission_classes([IsAdminUser])
 def admin_flag_detail(request, key):
     """CRUD operations on a specific flag definition (admin only)."""
+    perm = _get_admin_permission_class()()
+    if not perm.has_permission(request, None):
+        return Response(status=status.HTTP_403_FORBIDDEN)
+
     try:
         flag = FeatureFlagDefinition.objects.get(key=key)
     except FeatureFlagDefinition.DoesNotExist:
@@ -111,9 +122,12 @@ def admin_flag_detail(request, key):
 
 
 @api_view(["GET", "PUT", "DELETE"])
-@permission_classes([IsAdminUser])
 def tenant_override_detail(request, key, tenant_id):
     """CRUD operations on a tenant override (admin only)."""
+    perm = _get_admin_permission_class()()
+    if not perm.has_permission(request, None):
+        return Response(status=status.HTTP_403_FORBIDDEN)
+
     try:
         override = TenantFeatureFlag.objects.get(key__key=key, tenant_id=tenant_id)
     except TenantFeatureFlag.DoesNotExist:

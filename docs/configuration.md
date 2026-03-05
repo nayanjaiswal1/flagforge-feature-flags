@@ -141,7 +141,7 @@ Async SQLAlchemy 2.0 storage. Supports PostgreSQL (`asyncpg`) and SQLite (`aiosq
 from flagforge.contrib.fastapi.storage import AsyncSQLAlchemyStorage
 
 storage = AsyncSQLAlchemyStorage(
-    database_url="postgresql+asyncpg://user:pass@localhost/mydb",
+    database_url="postgresql+asyncpg://user:pass@localhost/mydb  # pragma: allowlist secret",
     echo=False,   # Log SQL queries
 )
 await storage.init_db()   # Creates tables if they don't exist
@@ -215,7 +215,7 @@ FlagForge itself has no required environment variables. Recommended patterns:
 
 ```bash
 # FastAPI — database URL
-DATABASE_URL=postgresql+asyncpg://user:pass@localhost/mydb
+DATABASE_URL=postgresql+asyncpg://user:pass@localhost/mydb  # pragma: allowlist secret
 
 # Redis cache
 REDIS_URL=redis://localhost:6379/0
@@ -228,31 +228,80 @@ APP_ENV=production
 
 ## Django Settings Reference
 
-No `FLAGFORGE_*` settings are required. FlagForge's Django app is self-contained.
+All `FLAGFORGE_*` settings are optional. Defaults shown below.
 
-Optional pattern using settings:
+### Tenancy
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `FLAGFORGE_TENANCY_MODE` | `"column"` | `"column"`, `"schema"`, or `"hybrid"` |
+| `FLAGFORGE_DEFAULT_TENANT_ID` | `"default"` | Fallback tenant ID when none resolved from request |
+| `FLAGFORGE_ENVIRONMENT` | `"production"` | Current environment name for environment gating |
+
+### Cache
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `FLAGFORGE_CACHE_BACKEND` | `"local"` | `"local"`, `"redis"`, `"none"`, or dotted path to a `CacheBackend` subclass |
+| `FLAGFORGE_CACHE_TTL` | `300` | Cache TTL in seconds for resolved flag values |
+| `FLAGFORGE_REDIS_URL` | `None` | Redis connection URL (used when `CACHE_BACKEND="redis"`) |
+| `FLAGFORGE_REDIS_HOST` | `"localhost"` | Redis host (used when `CACHE_BACKEND="redis"` and no URL set) |
+| `FLAGFORGE_REDIS_PORT` | `6379` | Redis port |
+| `FLAGFORGE_REDIS_DB` | `0` | Redis database number |
+| `FLAGFORGE_REDIS_PASSWORD` | `None` | Redis password |
+
+### Resolver hooks
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `FLAGFORGE_TENANT_RESOLVER` | `None` | Dotted path to `callable(request) -> str \| None` |
+| `FLAGFORGE_USER_RESOLVER` | `None` | Dotted path to `callable(request) -> tuple[str \| None, list[str]]` |
+
+When `FLAGFORGE_TENANT_RESOLVER` is not set, FlagForge checks `request.tenant_id`, then `request.tenant.schema_name` (django-tenants), then falls back to `FLAGFORGE_DEFAULT_TENANT_ID`.
+
+When `FLAGFORGE_USER_RESOLVER` is not set, FlagForge uses Django's built-in `request.user` and `request.user.groups`.
+
+**Example resolver:**
+
+```python
+# myapp/resolvers.py
+def get_tenant_id(request):
+    # Read tenant from JWT, header, subdomain, etc.
+    return request.headers.get("X-Tenant-ID")
+
+def get_user_info(request):
+    if request.user.is_authenticated:
+        return str(request.user.id), list(request.user.roles.values_list("name", flat=True))
+    return None, []
+```
 
 ```python
 # settings.py
-FLAGFORGE_YAML_CONFIG = BASE_DIR / "config" / "feature-flags.yaml"
-FLAGFORGE_REDIS_URL = env("REDIS_URL", default=None)
-FLAGFORGE_CACHE_TTL = 300
+FLAGFORGE_TENANT_RESOLVER = "myapp.resolvers.get_tenant_id"
+FLAGFORGE_USER_RESOLVER = "myapp.resolvers.get_user_info"
 ```
 
-Then in a custom engine setup or `AppConfig.ready()`:
+### Permissions
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `FLAGFORGE_ADMIN_PERMISSION` | `"rest_framework.permissions.IsAdminUser"` | Dotted path to DRF permission class for admin endpoints |
 
 ```python
-from django.apps import AppConfig
-
-class MyAppConfig(AppConfig):
-    def ready(self):
-        from django.conf import settings
-        import flagforge
-        from flagforge.contrib.django.storage import DjangoStorageAdapter
-        from flagforge.cache import RedisCache, LocalCache
-
-        storage = DjangoStorageAdapter()
-        redis_url = getattr(settings, "FLAGFORGE_REDIS_URL", None)
-        cache = RedisCache.from_url(redis_url) if redis_url else LocalCache()
-        flagforge.configure_engine(flagforge.FlagEngine(storage=storage, cache=cache))
+# settings.py — use a custom permission class
+FLAGFORGE_ADMIN_PERMISSION = "myapp.permissions.IsPlatformStaff"
 ```
+
+### System checks
+
+Run `python manage.py check` to validate all settings. FlagForge registers checks for:
+
+| Check ID | What it validates |
+|----------|------------------|
+| `flagforge.E001` | `FLAGFORGE_TENANCY_MODE` is `column`, `schema`, or `hybrid` |
+| `flagforge.E002` | `FLAGFORGE_CACHE_BACKEND` is valid or importable |
+| `flagforge.E003` | Redis host/URL is set when `CACHE_BACKEND="redis"` |
+| `flagforge.E004` | `FLAGFORGE_TENANT_RESOLVER` is importable |
+| `flagforge.E005` | `FLAGFORGE_USER_RESOLVER` is importable |
+| `flagforge.E006` | `FLAGFORGE_ADMIN_PERMISSION` is importable |
+| `flagforge.E007` | `FLAGFORGE_CACHE_TTL` is a positive integer |

@@ -12,7 +12,7 @@ FlagForge is a production-ready feature flag library for Python with first-class
 
 ## Features
 
-- **Multi-Tenant** — Per-tenant flag overrides; column-based or schema-based tenancy
+- **Multi-Tenant** — Per-tenant flag overrides; column, schema, or hybrid tenancy (Hybrid Gold Standard)
 - **Gradual Rollout** — Deterministic percentage-based bucketing via MurmurHash3
 - **User & Group Targeting** — Explicitly enable flags for individual users or groups
 - **Environment Gates** — Restrict flags to `staging`, `production`, etc.
@@ -135,6 +135,12 @@ MIDDLEWARE = [
     ...
     "flagforge.contrib.django.middleware.RequestCacheMiddleware",
 ]
+
+# Tenancy mode: "column" (default), "schema", or "hybrid"
+FLAGFORGE_TENANCY_MODE = "column"
+
+# Cache backend: "local" (default), "redis", "none", or dotted.path.ClassName
+FLAGFORGE_CACHE_BACKEND = "local"
 ```
 
 ### 2. Run migrations
@@ -205,7 +211,7 @@ from flagforge.contrib.fastapi.router import router as flags_router
 
 app = FastAPI(
     lifespan=create_flagforge_lifespan(
-        database_url="postgresql+asyncpg://user:pass@localhost/mydb"
+        database_url="postgresql+asyncpg://user:pass@localhost/mydb"  # pragma: allowlist secret
     )
 )
 app.include_router(flags_router, prefix="/api")
@@ -318,12 +324,21 @@ flags:
 | Redis | `RedisCache` / `AsyncRedisCache` | Multi-process, distributed |
 | Null | `NullCache` / `AsyncNullCache` | Testing / disable caching |
 
-### Redis cache
+Configure via Django settings — no custom engine setup needed:
+
+```python
+# settings.py
+FLAGFORGE_CACHE_BACKEND = "redis"
+FLAGFORGE_REDIS_URL = "redis://localhost:6379/0"
+FLAGFORGE_CACHE_TTL = 300  # seconds
+```
+
+Or pass directly:
 
 ```python
 from flagforge.cache import RedisCache
 
-cache = RedisCache(host="localhost", port=6379, db=0, ttl=300)
+cache = RedisCache(host="localhost", port=6379, db=0, default_ttl=300)
 engine = FlagEngine(storage=storage, cache=cache)
 ```
 

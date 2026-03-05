@@ -16,7 +16,7 @@ class CacheKeys:
     - User-targeted (has user/group lists): ff:user:{tenant_id}:{user_id}:{flag_key}
     - Definition: ff:def:{flag_key}
 
-    TTLs (in seconds):
+    TTLs (in seconds) — defaults, overridden by FLAGFORGE_CACHE_TTL Django setting:
     - Resolved: 300
     - User-targeted: 300
     - Definition: 3600
@@ -30,6 +30,26 @@ class CacheKeys:
     TTL_RESOLVED = 300
     TTL_USER = 300
     TTL_DEFINITION = 3600
+
+    @classmethod
+    def _resolved_ttl(cls) -> int:
+        """Return TTL for resolved keys, respecting FLAGFORGE_CACHE_TTL if Django is active."""
+        try:
+            from django.conf import settings
+
+            return getattr(settings, "FLAGFORGE_CACHE_TTL", cls.TTL_RESOLVED)
+        except Exception:
+            return cls.TTL_RESOLVED
+
+    @classmethod
+    def _user_ttl(cls) -> int:
+        """Return TTL for user-targeted keys, respecting FLAGFORGE_CACHE_TTL if Django is active."""
+        try:
+            from django.conf import settings
+
+            return getattr(settings, "FLAGFORGE_CACHE_TTL", cls.TTL_USER)
+        except Exception:
+            return cls.TTL_USER
 
     @staticmethod
     def has_targeting(override: TenantOverride | None) -> bool:
@@ -106,6 +126,8 @@ class CacheKeys:
         - If override has user/group targeting → use user_key (includes user_id)
         - Otherwise → use resolved_key (tenant-scoped, not user-scoped)
 
+        TTL is read from FLAGFORGE_CACHE_TTL Django setting when available.
+
         Args:
             tenant_id: Tenant identifier
             user_id: User identifier (can be None for anonymous)
@@ -116,8 +138,8 @@ class CacheKeys:
             Tuple of (cache_key, ttl_seconds)
         """
         if cls.has_targeting(override) and user_id:
-            return cls.user_key(tenant_id, user_id, flag_key), cls.TTL_USER
-        return cls.resolved_key(tenant_id, flag_key), cls.TTL_RESOLVED
+            return cls.user_key(tenant_id, user_id, flag_key), cls._user_ttl()
+        return cls.resolved_key(tenant_id, flag_key), cls._resolved_ttl()
 
     @classmethod
     def select_key_for_context(
