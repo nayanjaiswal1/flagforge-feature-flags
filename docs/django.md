@@ -64,12 +64,13 @@ MIDDLEWARE = [
 python manage.py migrate
 ```
 
-This creates two tables:
+This creates three tables:
 
-| Table | Description |
-|-------|-------------|
-| `feature_flag_definition` | Global flag definitions |
-| `tenant_feature_flag` | Per-tenant overrides |
+| Table | Mode | Description |
+|-------|------|-------------|
+| `feature_flag_definition` | all | Global flag definitions (shared / public schema) |
+| `tenant_feature_flag` | `column`, `schema` | Per-tenant overrides with `tenant_id` column |
+| `tenant_flag_override` | `hybrid` | Per-tenant overrides without `tenant_id` (schema routing provides isolation) |
 
 ### 4. Include the REST API (optional)
 
@@ -87,7 +88,74 @@ urlpatterns = [
 
 ## Multi-Tenancy Setup
 
-FlagForge needs to know the current tenant. The simplest approach is a custom middleware that sets `request.tenant_id`:
+### Tenancy modes
+
+Set `FLAGFORGE_TENANCY_MODE` in `settings.py`:
+
+| Mode | Where overrides live | Best for |
+|------|----------------------|----------|
+| `"column"` (default) | Shared schema, `tenant_id` column | Simple Django apps, any DB |
+| `"schema"` | Per-tenant schema via `django-tenants`, `tenant_id` column kept | `django-tenants` — schema isolation |
+| `"hybrid"` | Per-tenant schema, **no** `tenant_id` column | **Hybrid Gold Standard** — strict data residency + single control plane |
+
+### Hybrid Gold Standard (`FLAGFORGE_TENANCY_MODE = "hybrid"`)
+
+In hybrid mode:
+- **`FeatureFlagDefinition`** lives in the public/shared schema — your control plane. Define a flag once, it applies to all tenants.
+- **`TenantFlagOverride`** lives in each tenant's private schema. Deleting a tenant physically removes their flag settings. No cross-tenant data leakage possible.
+
+**`django-tenants` setup:**
+
+```python
+# settings.py
+FLAGFORGE_TENANCY_MODE = "hybrid"
+
+SHARED_APPS = [
+    "django_tenants",
+    "django.contrib.contenttypes",
+    ...
+    "flagforge.contrib.django",  # FeatureFlagDefinition lives here
+]
+
+TENANT_APPS = [
+    "django.contrib.auth",
+    ...
+    # TenantFlagOverride is created in each tenant's schema automatically
+    # No extra app needed — it's part of flagforge.contrib.django
+]
+```
+
+```bash
+# Create shared tables (FeatureFlagDefinition + TenantFeatureFlag)
+python manage.py migrate_schemas --shared
+
+# Create tenant tables (TenantFlagOverride) in every tenant schema
+python manage.py migrate_schemas --tenant
+```
+
+### Resolving the current tenant
+
+FlagForge auto-detects the tenant from requests in this order:
+1. `FLAGFORGE_TENANT_RESOLVER` callable (your custom logic)
+2. `request.tenant_id` attribute
+3. `request.tenant.schema_name` (django-tenants standard)
+4. `FLAGFORGE_DEFAULT_TENANT_ID` setting (fallback, default `"default"`)
+
+**Custom resolver (recommended for production):**
+
+```python
+# myapp/resolvers.py
+def get_tenant_id(request):
+    # From subdomain, JWT, header — whatever fits your architecture
+    return request.headers.get("X-Tenant-ID") or request.get_host().split(".")[0]
+```
+
+```python
+# settings.py
+FLAGFORGE_TENANT_RESOLVER = "myapp.resolvers.get_tenant_id"
+```
+
+**Simple middleware approach (alternative):**
 
 ```python
 # myapp/middleware.py
@@ -96,13 +164,9 @@ class TenantMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        # Example: read tenant from subdomain
-        host = request.get_host().split(".")[0]
-        request.tenant_id = host  # e.g. "acme" from acme.example.com
+        request.tenant_id = request.get_host().split(".")[0]
         return self.get_response(request)
 ```
-
-Or from a JWT claim, session, header — whatever suits your architecture.
 
 ---
 
@@ -198,7 +262,15 @@ The `{% flag %}` tag requires the `request` object to resolve the current tenant
 
 ## Django Admin
 
-FlagForge automatically registers `FeatureFlagDefinition` and `TenantFeatureFlag` in the Django Admin. Navigate to `/admin/` to manage flags and per-tenant overrides through the UI.
+FlagForge automatically registers all models in the Django Admin:
+
+| Admin model | Mode | Description |
+|-------------|------|-------------|
+| `FeatureFlagDefinition` | all | Global flag definitions |
+| `TenantFeatureFlag` | `column`, `schema` | Per-tenant overrides (with `tenant_id` column) |
+| `TenantFlagOverride` | `hybrid` | Per-tenant overrides (no `tenant_id` — schema is the tenant) |
+
+Navigate to `/admin/` to manage flags and per-tenant overrides through the UI.
 
 ---
 
@@ -306,26 +378,54 @@ flags:
 
 ---
 
-## Using Redis Cache (Production)
+## Cache Configuration
 
-Replace `LocalCache` with `RedisCache` for multi-process deployments:
+### Via settings (recommended)
+
+FlagForge reads cache config from Django settings — no custom engine setup needed:
 
 ```python
 # settings.py
+
+# Local in-process cache (default — good for single-process)
+FLAGFORGE_CACHE_BACKEND = "local"
+
+# Redis — for multi-process / multi-instance deployments
+FLAGFORGE_CACHE_BACKEND = "redis"
 FLAGFORGE_REDIS_URL = "redis://localhost:6379/0"
 FLAGFORGE_CACHE_TTL = 300  # seconds
+
+# Disable caching entirely (useful for testing)
+FLAGFORGE_CACHE_BACKEND = "none"
+
+# Custom backend — dotted path to any CacheBackend subclass
+FLAGFORGE_CACHE_BACKEND = "myapp.cache.MyCacheBackend"
+```
+
+### Custom user resolver
+
+If your project uses a non-standard user model or permission system:
+
+```python
+# myapp/resolvers.py
+def get_user_info(request):
+    if hasattr(request, "auth") and request.auth:
+        return str(request.auth["sub"]), request.auth.get("roles", [])
+    return None, []
 ```
 
 ```python
-# views.py or engine setup
-from flagforge.cache import RedisCache
-from flagforge.contrib.django.storage import DjangoStorageAdapter
-from flagforge.core.engine import FlagEngine
+# settings.py
+FLAGFORGE_USER_RESOLVER = "myapp.resolvers.get_user_info"
+```
 
-def get_engine():
-    storage = DjangoStorageAdapter()
-    cache = RedisCache.from_url("redis://localhost:6379/0", ttl=300)
-    return FlagEngine(storage=storage, cache=cache)
+### Custom admin permission
+
+By default, admin endpoints require `IsAdminUser`. Override for your own permission class:
+
+```python
+# settings.py
+FLAGFORGE_ADMIN_PERMISSION = "myapp.permissions.IsPlatformStaff"
 ```
 
 ---
@@ -373,6 +473,16 @@ MIDDLEWARE = [
     "myproject.middleware.TenantMiddleware",
     "flagforge.contrib.django.middleware.RequestCacheMiddleware",
 ]
+
+# --- FlagForge ---
+FLAGFORGE_TENANCY_MODE = "column"        # or "schema" or "hybrid"
+FLAGFORGE_CACHE_BACKEND = "local"        # or "redis" / "none" / dotted.path
+FLAGFORGE_ENVIRONMENT = "production"
+# FLAGFORGE_REDIS_URL = "redis://localhost:6379/0"
+# FLAGFORGE_CACHE_TTL = 300
+# FLAGFORGE_TENANT_RESOLVER = "myapp.resolvers.get_tenant_id"
+# FLAGFORGE_USER_RESOLVER = "myapp.resolvers.get_user_info"
+# FLAGFORGE_ADMIN_PERMISSION = "myapp.permissions.IsPlatformStaff"
 ```
 
 **`views.py`**
